@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CV Optimizer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<style>
+:root {
+  --cream: #F7F4EE;
+  --dark: #1A1814;
+  --mid: #4A4640;
+  --light: #8A8480;
+  --accent: #2D5A4B;
+  --accent-light: #E8F0ED;
+  --accent-mid: #4A8C74;
+  --border: #DDD9D2;
+  --white: #FFFFFF;
+  --danger: #C0392B;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--dark); min-height: 100vh; }
+
+header { background: var(--dark); padding: 20px 40px; display: flex; align-items: baseline; gap: 14px; }
+header h1 { font-family: 'DM Serif Display', serif; font-size: 24px; color: var(--white); letter-spacing: -0.5px; }
+header span { font-size: 11px; color: var(--light); font-weight: 300; letter-spacing: 0.8px; text-transform: uppercase; }
+
+.layout { display: grid; grid-template-columns: 390px 1fr; min-height: calc(100vh - 65px); }
+
+.sidebar {
+  background: var(--white); border-right: 1px solid var(--border);
+  padding: 26px 24px; display: flex; flex-direction: column; gap: 18px;
+  position: sticky; top: 0; height: calc(100vh - 65px); overflow-y: auto;
+}
+
+.slabel { font-size: 10px; font-weight: 600; letter-spacing: 1.4px; text-transform: uppercase; color: var(--light); margin-bottom: 7px; }
+
+input[type=password] {
+  width: 100%; border: 1px solid var(--border); border-radius: 7px;
+  padding: 9px 12px; font-family: 'DM Sans', sans-serif; font-size: 13px;
+  color: var(--dark); background: var(--cream); transition: border-color .15s, background .15s;
+}
+input[type=password]:focus { outline: none; border-color: var(--accent-mid); background: var(--white); }
+
+textarea {
+  width: 100%; border: 1px solid var(--border); border-radius: 7px;
+  padding: 10px 12px; font-family: 'DM Sans', sans-serif; font-size: 13px;
+  color: var(--dark); background: var(--cream); transition: border-color .15s, background .15s;
+  resize: vertical; min-height: 180px; line-height: 1.5;
+}
+textarea:focus { outline: none; border-color: var(--accent-mid); background: var(--white); }
+textarea::placeholder { color: var(--light); }
+
+.hint { font-size: 11px; color: var(--light); line-height: 1.45; margin-top: 5px; }
+.hint a { color: var(--accent); text-decoration: none; }
+.hint strong { color: var(--mid); font-weight: 500; }
+
+.dropzone {
+  border: 2px dashed var(--border); border-radius: 9px; padding: 18px 14px;
+  text-align: center; cursor: pointer; transition: all .2s; background: var(--cream); position: relative;
+}
+.dropzone:hover, .dropzone.over { border-color: var(--accent-mid); background: var(--accent-light); }
+.dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.dz-icon { width: 30px; height: 30px; margin: 0 auto 7px; background: var(--accent-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.dropzone p { font-size: 12px; color: var(--mid); line-height: 1.5; }
+.dropzone .sub { font-size: 10px; color: var(--light); margin-top: 3px; }
+.dropzone .li-hint { font-size: 10px; color: var(--accent); margin-top: 6px; line-height: 1.4; }
+.dropzone .fname { font-size: 11px; color: var(--accent); font-weight: 500; margin-top: 5px; }
+
+.char-counter { font-size: 10px; color: var(--light); text-align: right; margin-top: 4px; }
+.char-counter.warn { color: var(--accent-mid); }
+
+.notice { font-size: 11px; color: var(--mid); background: var(--accent-light); border-radius: 6px; padding: 8px 11px; line-height: 1.5; }
+.error { background: #FEF0EE; border: 1px solid #F5C0B8; border-radius: 7px; padding: 11px 13px; font-size: 12px; color: var(--danger); line-height: 1.5; }
+
+.genbtn {
+  background: var(--accent); color: var(--white); border: none; border-radius: 9px;
+  padding: 13px 18px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: all .2s; width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.genbtn:hover:not(:disabled) { background: #1E3D32; transform: translateY(-1px); }
+.genbtn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+/* Analysis panel */
+.apanel { display: none; flex-direction: column; gap: 11px; border-top: 1px solid var(--border); padding-top: 16px; }
+.apanel.on { display: flex; }
+.atitle { display: flex; align-items: center; gap: 7px; }
+.adot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.atitle span { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); }
+.aitem { display: flex; flex-direction: column; gap: 2px; }
+.alabel { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .7px; color: var(--light); }
+.aval { font-size: 12px; color: var(--mid); line-height: 1.55; }
+.kwpill { display: inline-block; background: var(--accent-light); color: var(--accent); border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: 500; margin: 2px 2px 2px 0; }
+
+/* Output */
+.output { padding: 30px 38px; display: flex; flex-direction: column; }
+
+.empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; }
+.empty-icon { width: 50px; height: 50px; border-radius: 50%; background: var(--border); display: flex; align-items: center; justify-content: center; opacity: .4; }
+.empty h2 { font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--mid); opacity: .4; }
+.empty p { font-size: 12px; max-width: 260px; line-height: 1.6; color: var(--light); }
+
+.spinner-wrap { display: none; flex-direction: column; align-items: center; justify-content: center; gap: 16px; flex: 1; text-align: center; }
+.spinner-wrap.on { display: flex; }
+.spin { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin-msg { color: var(--mid); font-size: 14px; }
+.spin-sub { font-size: 11px; color: var(--light); }
+
+#result { display: none; flex-direction: column; gap: 14px; }
+#result.on { display: flex; }
+
+.rbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.rtitle { font-family: 'DM Serif Display', serif; font-size: 19px; color: var(--dark); }
+.rbtns { display: flex; gap: 7px; flex-wrap: wrap; }
+.btn2 { background: var(--white); color: var(--dark); border: 1px solid var(--border); border-radius: 7px; padding: 7px 13px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: all .15s; }
+.btn2:hover { background: var(--cream); border-color: var(--mid); }
+.btn1 { background: var(--accent); color: var(--white); border: 1px solid transparent; border-radius: 7px; padding: 7px 13px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: all .15s; }
+.btn1:hover { background: #1E3D32; }
+
+.cvwrap { background: var(--white); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: 0 4px 18px rgba(0,0,0,.06); }
+
+/* CV Preview Layout */
+.cvpage { display: grid; grid-template-columns: 200px 1fr; min-height: 260mm; }
+.cvsb { background: #E8E4DC; padding: 28px 18px; display: flex; flex-direction: column; gap: 20px; }
+.cvmain { background: #FFFFFF; padding: 32px 28px; display: flex; flex-direction: column; gap: 18px; }
+
+.cvstitle { font-size: 9px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; margin-bottom: 8px; padding-bottom: 4px; }
+.cvsb .cvstitle { color: #5A7A96; border-bottom: 1px solid #C8C3BA; }
+.cvmain .cvstitle { color: #8A8480; border-bottom: 1px solid #DDD9D2; }
+
+.cvname { font-family: 'DM Serif Display', serif; font-size: 26px; color: #2C2A28; line-height: 1.1; margin-bottom: 2px; }
+.cvtitle { font-size: 13px; color: #5A7A96; font-weight: 500; margin-bottom: 10px; }
+.cvprofile { font-size: 12px; line-height: 1.7; color: #4A4640; }
+
+.cvexp { margin-bottom: 13px; }
+.cveco { font-size: 12px; font-weight: 600; color: #2C2A28; }
+.cvrole { font-size: 11px; font-weight: 500; color: #5A7A96; margin: 1px 0; }
+.cvmeta { font-size: 10px; color: #8A8480; margin-bottom: 4px; }
+.cvdesc { font-size: 11px; line-height: 1.6; color: #4A4640; }
+.cvdesc ul { padding-left: 13px; }
+.cvdesc li { margin-bottom: 2px; }
+
+.sblbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: #3A3835; display: block; margin-bottom: 2px; }
+.sbval { font-size: 11px; color: #5A5652; line-height: 1.5; margin-bottom: 6px; display: block; }
+.sbval a { color: #5A7A96; text-decoration: none; }
+
+.cvtag { display: inline-block; background: #D8D2C8; color: #4A4640; border: 1px solid #C4BEB4; border-radius: 3px; padding: 3px 6px; font-size: 10px; margin: 2px 2px 2px 0; }
+.cvtag.hl { background: #BDD0E0; color: #2C4A62; border-color: #A8C0D4; }
+
+.langrow { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.langname { font-size: 11px; color: #4A4640; }
+.langlvl { font-size: 10px; color: #7A7672; text-transform: uppercase; letter-spacing: .4px; }
+
+.certname { font-size: 11px; color: #4A4640; line-height: 1.35; }
+.certmeta { font-size: 10px; color: #7A7672; margin-bottom: 6px; }
+
+.edutitle { font-size: 11px; color: #2C2A28; font-weight: 500; }
+.eduinst { font-size: 10px; color: #5A5652; margin: 1px 0; }
+.edudate { font-size: 10px; color: #7A7672; margin-bottom: 6px; }
+
+@media (max-width: 820px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; }
+  .output { padding: 22px 16px; }
+}
+@media print {
+  header, .sidebar, .rbar { display: none; }
+  .layout { display: block; }
+  .output { padding: 0; }
+  .cvwrap { border: none; box-shadow: none; border-radius: 0; }
+  #result { display: flex !important; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>CV Optimizer</h1>
+  <span>Adaptación profesional con IA</span>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+
+    <div>
+      <div class="slabel">API Key de Anthropic</div>
+      <input type="password" id="apikey" placeholder="sk-ant-api03-..." autocomplete="off">
+      <p class="hint">Sin cuenta: <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com →</a></p>
+    </div>
+
+    <div>
+      <div class="slabel">Tu CV en PDF</div>
+      <div class="dropzone" id="dz">
+        <input type="file" id="cvfile" accept=".pdf" onchange="onFile(event)">
+        <div class="dz-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2D5A4B" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <p>Arrastra o haz clic para subir</p>
+        <p class="sub">Solo PDF · máx. 5MB</p>
+        <p class="li-hint">¿No tienes CV en PDF? Exporta tu perfil de LinkedIn como PDF y cárgalo aquí</p>
+        <p class="fname" id="fname"></p>
+      </div>
+    </div>
+
+    <div>
+      <div class="slabel">Oferta de empleo *</div>
+      <textarea id="jobtext" placeholder="Pega aquí el texto completo de la oferta de empleo. Cuanto más completo, mejor resultado." oninput="countChars()"></textarea>
+      <div class="char-counter" id="charcount">0 caracteres</div>
+      <p class="hint">Copia el texto directamente desde LinkedIn, Indeed, InfoJobs o cualquier portal.</p>
+    </div>
+
+    <div class="notice">El CV nunca inventa información. Solo reordena, reescribe con keywords ATS y optimiza lo que ya tienes.</div>
+
+    <div id="errdiv"></div>
+
+    <button class="genbtn" id="genbtn" onclick="generate()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polygon points="5 3 19 12 5 21 5 3"/>
+      </svg>
+      Generar CV optimizado
+    </button>
+
+    <div class="apanel" id="apanel">
+      <div class="atitle"><div class="adot"></div><span>Informe de optimización</span></div>
+      <div class="aitem" id="ai-lang" style="display:none">
+        <div class="alabel">Idioma detectado</div>
+        <div class="aval" id="av-lang"></div>
+      </div>
+      <div class="aitem">
+        <div class="alabel">Keywords ATS insertadas</div>
+        <div class="aval" id="av-kw"></div>
+      </div>
+      <div class="aitem">
+        <div class="alabel">Perfil profesional</div>
+        <div class="aval" id="av-perfil"></div>
+      </div>
+      <div class="aitem">
+        <div class="alabel">Experiencias</div>
+        <div class="aval" id="av-exp"></div>
+      </div>
+      <div class="aitem" id="ai-comp" style="display:none">
+        <div class="alabel">Competencias</div>
+        <div class="aval" id="av-comp"></div>
+      </div>
+      <div class="aitem">
+        <div class="alabel">Reordenamiento</div>
+        <div class="aval" id="av-orden"></div>
+      </div>
+    </div>
+
+  </aside>
+
+  <main class="output">
+
+    <div class="empty" id="empty">
+      <div class="empty-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8A8480" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+      </div>
+      <h2>Tu CV adaptado aparecerá aquí</h2>
+      <p>Sube tu CV, pega la oferta y pulsa Generar.</p>
+    </div>
+
+    <div class="spinner-wrap" id="spinnerwrap">
+      <div class="spin"></div>
+      <p class="spin-msg" id="spinmsg">Analizando perfil y oferta...</p>
+      <p class="spin-sub">Esto puede tardar entre 30 y 60 segundos</p>
+    </div>
+
+    <div id="result">
+      <div class="rbar">
+        <div class="rtitle">CV Optimizado</div>
+        <div class="rbtns">
+          <button class="btn2" id="btncopy" onclick="copyText()">Copiar texto</button>
+          <button class="btn1" id="btnGdocs" onclick="openInGoogleDocs()">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+  Abrir en Google Docs
+</button>
+        </div>
+      </div>
+      <div class="cvwrap"><div id="cvpreview"></div></div>
+      <p style="font-size:11px;color:var(--light);text-align:center;margin-top:4px;">
+        El documento se crea directamente en tu Google Drive y se abre listo para editar.
+      </p>
+    </div>
+
+  </main>
+</div>
+
+<script>
+let pdfB64 = null;
+let _cv = null;
+
+// Drag & drop
+const dz = document.getElementById('dz');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === 'application/pdf') loadFile(f);
+});
+
+function onFile(e) { const f = e.target.files[0]; if (f) loadFile(f); }
+
+function loadFile(f) {
+  if (f.size > 5 * 1024 * 1024) { showErr('Archivo demasiado grande. Máximo 5MB.'); return; }
+  document.getElementById('fname').textContent = '✓ ' + f.name;
+  const r = new FileReader();
+  r.onload = ev => { pdfB64 = ev.target.result.split(',')[1]; };
+  r.readAsDataURL(f);
+}
+
+function countChars() {
+  const len = document.getElementById('jobtext').value.length;
+  const el = document.getElementById('charcount');
+  el.textContent = len.toLocaleString() + ' caracteres';
+  el.classList.toggle('warn', len > 6000);
+}
+
+function showErr(msg) { document.getElementById('errdiv').innerHTML = `<div class="error">${msg}</div>`; }
+function clearErr() { document.getElementById('errdiv').innerHTML = ''; }
+
+function setStep(s) {
+  document.getElementById('empty').style.display = s === 'empty' ? 'flex' : 'none';
+  document.getElementById('spinnerwrap').classList.toggle('on', s === 'loading');
+  document.getElementById('result').classList.toggle('on', s === 'result');
+}
+
+function setMsg(m) { document.getElementById('spinmsg').textContent = m; }
+
+async function generate() {
+  clearErr();
+  const apiKey  = document.getElementById('apikey').value.trim();
+  const jobText = document.getElementById('jobtext').value.trim();
+
+  if (!apiKey)   { showErr('Ingresa tu API key de Anthropic.'); return; }
+  if (!pdfB64)   { showErr('Sube tu CV en PDF para continuar.'); return; }
+  if (!jobText)  { showErr('Pega el texto de la oferta de empleo.'); return; }
+  if (jobText.length < 50) { showErr('El texto de la oferta parece muy corto. Copia la descripción completa.'); return; }
+
+  document.getElementById('genbtn').disabled = true;
+  document.getElementById('apanel').classList.remove('on');
+  setStep('loading');
+
+  const msgs = [
+    'Analizando perfil y oferta...',
+    'Leyendo tu experiencia...',
+    'Identificando keywords ATS...',
+    'Optimizando secciones...',
+    'Redactando perfil profesional...',
+    'Ajustando idioma y formato...',
+    'Finalizando el CV...'
+  ];
+  let mi = 0;
+  setMsg(msgs[0]);
+  const ticker = setInterval(() => {
+    mi++;
+    if (mi < msgs.length) {
+      setMsg(msgs[mi]);
+    } else {
+      clearInterval(ticker);
+    }
+  }, 7000);
+
+  try {
+    // Cap job text at 8000 chars to stay within token limits while preserving full offers
+    const jobContent = jobText.slice(0, 8000);
+
+    const userContent = [
+      { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfB64 } },
+      { type: 'text', text: buildPrompt(jobContent) }
+    ];
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4500,
+        messages: [{ role: 'user', content: userContent }]
+      })
+    });
+
+    if (!res.ok) {
+      const e = await res.json();
+      throw new Error(e.error?.message || `Error ${res.status}`);
+    }
+
+    const data = await res.json();
+    const raw = data.content[0]?.text || '';
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('Respuesta inesperada. Intenta de nuevo.');
+    const cv = JSON.parse(match[0]);
+
+    _cv = cv;
+    renderCV(cv);
+    renderAnalysis(cv);
+    setStep('result');
+
+  } catch (err) {
+    setStep('empty');
+    if (err.message.includes('401')) showErr('API key inválida. Verifica tu clave en console.anthropic.com.');
+    else if (err.message.toLowerCase().includes('json') || err.message.toLowerCase().includes('parse')) showErr('Error procesando la respuesta. Intenta de nuevo.');
+    else showErr('Error: ' + err.message);
+  } finally {
+    clearInterval(ticker);
+    document.getElementById('genbtn').disabled = false;
+    setMsg(msgs[0]);
+  }
+}
+
+function buildPrompt(jobContent) {
+  return `Eres un reclutador senior con 15+ años de experiencia en selección de talento y optimización de CVs para sistemas ATS. Tu tarea es adaptar el CV del candidato (adjunto en PDF) a la oferta de empleo que se incluye a continuación.
+
+═══════════════════════════════════════
+REGLAS ABSOLUTAS — NO NEGOCIABLES
+═══════════════════════════════════════
+1. NUNCA inventes datos. Esta regla es la más importante y aplica a CADA PALABRA del CV.
+   — No añadas tecnologías, herramientas, metodologías o áreas de expertise que no aparezcan literalmente en el CV original.
+   — No añadas calificadores como "experience in X", "expertise in Y", "knowledge of Z" a menos que el CV diga exactamente eso.
+   — No inferas habilidades a partir del sector o del cargo. Ejemplo: si el cargo es "AI Manager" no asumas ni escribas "experience in AI projects" a menos que el CV lo diga explícitamente.
+   — No añadas métricas, porcentajes ni cifras que no estén en el CV original.
+   — Cuando reescribas un bullet, usa SOLO las palabras, conceptos y datos que ya están en ese bullet o en el resto del CV. Puedes cambiar el orden, el verbo de acción y la estructura de la frase, pero no el contenido.
+2. NO modifiques: nombres de empresas, títulos de cargo, fechas, modelo de trabajo (remoto/presencial/híbrido), datos de contacto, formación académica.
+3. CAMPO CIUDAD: Solo incluye la ciudad de residencia del candidato si aparece EXPLÍCITAMENTE en el CV como lugar de residencia. NO uses la ubicación de empresas donde trabajó. Si no hay ciudad clara, deja el campo vacío.
+4. IDIOMA — CRÍTICO: Detecta el idioma de la oferta. Si la oferta está en INGLÉS → todo el CV en inglés. Si está en ESPAÑOL → todo el CV en español. Sin excepciones, sin mezclar idiomas.
+5. LONGITUD Y DENSIDAD:
+   - No hay un número fijo de páginas. El CV debe tener la longitud natural que el perfil requiere.
+   - Perfil profesional: máximo 3-4 líneas, directo y enfocado en la oferta. No más.
+   - Experiencias: 4-5 bullets para posiciones relevantes, 2-3 para las menos relevantes. Cada bullet: verbo de acción + contexto + resultado medible si existe. Máximo 20 palabras por bullet.
+   - Prioriza calidad sobre cantidad: bullets concisos y potentes, sin relleno.
+   - No repitas información entre bullets del mismo cargo.
+6. Solo reordena, reescribe y optimiza lo que ya existe en el CV.
+
+═══════════════════════════════════════
+OPTIMIZACIONES PERMITIDAS — Y SUS LÍMITES
+═══════════════════════════════════════
+✓ Reordenar bullets dentro de una experiencia para mostrar primero el más relevante para la oferta
+✓ Reordenar experiencias para mostrar primero las más relevantes
+✓ Cambiar el verbo de acción al inicio del bullet por uno más fuerte (ej: "gestioné" → "lideré")
+✓ Reestructurar la frase para que sea más directa y clara
+✓ Incorporar keywords de la oferta SOLO si describen algo que ya está en el CV con otras palabras
+✓ Optimizar el perfil profesional enfocándolo en el cargo — usando solo información del CV
+✓ Reemplazar competencias poco relevantes por otras SOLO si aparecen implícitamente en la experiencia descrita
+✓ Reordenar certificaciones y herramientas por relevancia
+
+✗ NO añadas ningún concepto, tecnología, resultado o área que no esté en el CV original
+✗ NO expandas el significado de un bullet más allá de lo que dice literalmente
+
+═══════════════════════════════════════
+OFERTA DE EMPLEO
+═══════════════════════════════════════
+${jobContent}
+
+═══════════════════════════════════════
+INSTRUCCIÓN DE RESPUESTA
+═══════════════════════════════════════
+Responde ÚNICAMENTE con el siguiente objeto JSON. Sin texto previo, sin explicaciones, sin bloques de código, sin backticks. Solo el JSON puro:
+
+{
+  "idioma": "es",
+  "nombre": "",
+  "cargo": "",
+  "perfil": "",
+  "contacto": {
+    "email": "",
+    "telefono": "",
+    "linkedin": "",
+    "ciudad": "",
+    "otros": []
+  },
+  "experiencias": [
+    {
+      "empresa": "",
+      "cargo": "",
+      "periodo": "",
+      "ubicacion": "",
+      "modelo": "",
+      "descripcion": ["bullet 1", "bullet 2", "bullet 3"]
+    }
+  ],
+  "formacion": [
+    { "titulo": "", "institucion": "", "periodo": "" }
+  ],
+  "certificaciones": [
+    { "nombre": "", "entidad": "", "fecha": "" }
+  ],
+  "idiomas": [
+    { "idioma": "", "nivel": "" }
+  ],
+  "competencias": [],
+  "herramientas": [],
+  "keywords_usadas": [],
+  "analisis": {
+    "idioma_oferta": "Indica el idioma detectado y por qué",
+    "perfil_cambios": "Qué se cambió en el perfil y por qué",
+    "experiencias_cambios": "Qué se optimizó en las experiencias",
+    "competencias_cambios": "Cambios en competencias o 'Sin cambios necesarios'",
+    "reordenamiento": "Qué se reordenó y por qué"
+  }
+}`;
+}
+
+function labels(en) {
+  return {
+    contact:        en ? 'Contact'                : 'Contacto',
+    education:      en ? 'Education'              : 'Formación',
+    certifications: en ? 'Certifications'         : 'Certificaciones',
+    languages:      en ? 'Languages'              : 'Idiomas',
+    skills:         en ? 'Skills'                 : 'Competencias',
+    tools:          en ? 'Tools'                  : 'Herramientas',
+    experience:     en ? 'Professional Experience': 'Experiencia Profesional',
+    profile:        en ? 'Profile'                : 'Perfil Profesional'
+  };
+}
+
+function renderAnalysis(cv) {
+  const a = cv.analisis || {};
+  if (a.idioma_oferta) {
+    document.getElementById('ai-lang').style.display = '';
+    document.getElementById('av-lang').textContent = a.idioma_oferta;
+  }
+  const kws = cv.keywords_usadas || [];
+  document.getElementById('av-kw').innerHTML = kws.length
+    ? kws.map(k => `<span class="kwpill">${k}</span>`).join('')
+    : '<span style="color:var(--light)">No identificadas</span>';
+  document.getElementById('av-perfil').textContent  = a.perfil_cambios || '—';
+  document.getElementById('av-exp').textContent     = a.experiencias_cambios || '—';
+  if (a.competencias_cambios && !a.competencias_cambios.toLowerCase().includes('sin cambios')) {
+    document.getElementById('ai-comp').style.display = '';
+    document.getElementById('av-comp').textContent = a.competencias_cambios;
+  }
+  document.getElementById('av-orden').textContent = a.reordenamiento || '—';
+  document.getElementById('apanel').classList.add('on');
+}
+
+function renderCV(cv) {
+  const en = cv.idioma === 'en';
+  const L  = labels(en);
+  const c  = cv.contacto || {};
+
+  const contactH = [
+    c.email    ? `<span class="sblbl">Email</span><span class="sbval">${c.email}</span>` : '',
+    c.telefono ? `<span class="sblbl">${en?'Phone':'Teléfono'}</span><span class="sbval">${c.telefono}</span>` : '',
+    c.ciudad   ? `<span class="sblbl">${en?'Location':'Ubicación'}</span><span class="sbval">${c.ciudad}</span>` : '',
+    c.linkedin ? `<span class="sblbl">LinkedIn</span><span class="sbval"><a href="${c.linkedin}" target="_blank">${c.linkedin.replace(/https?:\/\/(www\.)?linkedin\.com\/in\//,'').replace(/\/$/,'')}</a></span>` : '',
+    ...(c.otros||[]).map(o => `<span class="sbval">${o}</span>`)
+  ].filter(Boolean).join('');
+
+  const eduH = (cv.formacion||[]).map(f => `
+    <div class="edutitle">${f.titulo}</div>
+    <div class="eduinst">${f.institucion}</div>
+    ${f.periodo ? `<div class="edudate">${f.periodo}</div>` : ''}
+  `).join('');
+
+  const certH = (cv.certificaciones||[]).map(c => `
+    <div class="certname">${c.nombre}</div>
+    <div class="certmeta">${c.entidad}${c.fecha?' · '+c.fecha:''}</div>
+  `).join('');
+
+  const langH  = (cv.idiomas||[]).map(l => `
+    <div class="langrow"><span class="langname">${l.idioma}</span><span class="langlvl">${l.nivel}</span></div>
+  `).join('');
+
+  const skillH = (cv.competencias||[]).map((s,i) => `<span class="cvtag${i<5?' hl':''}">${s}</span>`).join('');
+  const toolH  = (cv.herramientas||[]).map(t => `<span class="cvtag">${t}</span>`).join('');
+
+  const expH = (cv.experiencias||[]).map(e => `
+    <div class="cvexp">
+      <div class="cveco">${e.empresa}</div>
+      <div class="cvrole">${e.cargo}</div>
+      <div class="cvmeta">${e.periodo}${e.ubicacion?' · '+e.ubicacion:''}${e.modelo?' · '+e.modelo:''}</div>
+      <div class="cvdesc"><ul>${(e.descripcion||[]).map(b=>`<li>${b}</li>`).join('')}</ul></div>
+    </div>`).join('');
+
+  document.getElementById('cvpreview').innerHTML = `
+    <div class="cvpage">
+      <div class="cvsb">
+        <div><div class="cvstitle">${L.contact}</div>${contactH||'<span class="sbval">—</span>'}</div>
+        <div><div class="cvstitle">${L.education}</div>${eduH||'<span class="sbval">—</span>'}</div>
+        ${certH?`<div><div class="cvstitle">${L.certifications}</div>${certH}</div>`:''}
+        <div><div class="cvstitle">${L.languages}</div>${langH||'<span class="sbval">—</span>'}</div>
+        <div><div class="cvstitle">${L.skills}</div>${skillH||'<span class="sbval">—</span>'}</div>
+        <div><div class="cvstitle">${L.tools}</div>${toolH||'<span class="sbval">—</span>'}</div>
+      </div>
+      <div class="cvmain">
+        <div>
+          <div class="cvname">${cv.nombre}</div>
+          <div class="cvtitle">${cv.cargo}</div>
+        </div>
+        <div><div class="cvstitle">${L.profile}</div><div class="cvprofile">${cv.perfil}</div></div>
+        <div><div class="cvstitle">${L.experience}</div>${expH}</div>
+      </div>
+    </div>`;
+}
+
+// ── Copy plain text ──────────────────────────────────────────────────────────
+function buildPlain() {
+  const cv = _cv; if (!cv) return '';
+  const en = cv.idioma === 'en';
+  const L  = labels(en);
+  const c  = cv.contacto || {};
+  let t = cv.nombre + '\n' + cv.cargo + '\n\n';
+  t += L.profile.toUpperCase() + '\n' + cv.perfil + '\n\n';
+  t += L.experience.toUpperCase() + '\n';
+  (cv.experiencias||[]).forEach(e => {
+    t += '\n' + e.empresa + '\n' + e.cargo + '\n';
+    t += e.periodo + (e.ubicacion?' · '+e.ubicacion:'') + (e.modelo?' · '+e.modelo:'') + '\n';
+    (e.descripcion||[]).forEach(b => t += '• ' + b + '\n');
+  });
+  t += '\n' + L.education.toUpperCase() + '\n';
+  (cv.formacion||[]).forEach(f => t += f.titulo + ' — ' + f.institucion + (f.periodo?' ('+f.periodo+')':'') + '\n');
+  if ((cv.certificaciones||[]).length) {
+    t += '\n' + L.certifications.toUpperCase() + '\n';
+    cv.certificaciones.forEach(c => t += c.nombre + ' · ' + c.entidad + (c.fecha?' · '+c.fecha:'') + '\n');
+  }
+  t += '\n' + L.skills.toUpperCase()    + '\n' + (cv.competencias||[]).join(' · ') + '\n';
+  t += '\n' + L.tools.toUpperCase()     + '\n' + (cv.herramientas||[]).join(' · ') + '\n';
+  t += '\n' + L.languages.toUpperCase() + '\n';
+  (cv.idiomas||[]).forEach(l => t += l.idioma + ': ' + l.nivel + '\n');
+  t += '\n' + L.contact.toUpperCase() + '\n';
+  if (c.email)    t += c.email + '\n';
+  if (c.telefono) t += c.telefono + '\n';
+  if (c.ciudad)   t += c.ciudad + '\n';
+  if (c.linkedin) t += c.linkedin + '\n';
+  return t;
+}
+
+function copyText() {
+  const txt = buildPlain(); if (!txt) return;
+  navigator.clipboard.writeText(txt).then(() => {
+    const b = document.getElementById('btncopy');
+    b.textContent = '✓ Copiado';
+    setTimeout(() => b.textContent = 'Copiar texto', 2000);
+  });
+}
+
+// ── Word export optimised for LibreOffice ──
+function downloadDocx() {
+  const cv = _cv; if (!cv) return;
+  const en = cv.idioma === 'en';
+  const L  = labels(en);
+  const c  = cv.contacto || {};
+
+  function esc(s) {
+    return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  const SB_BG    = '#E8E4DC';
+  const SB_TITLE = '#5A7A96';
+  const SB_DIV   = '#C8C3BA';
+  const SB_LABEL = '#3A3835';
+  const SB_VAL   = '#5A5652';
+  const SB_MUTED = '#7A7672';
+
+  function sbHead(title) {
+    return `<p style="font-family:Arial,sans-serif;font-size:8pt;font-weight:bold;color:${SB_TITLE};letter-spacing:1.5px;text-transform:uppercase;margin:14px 0 4px 0;padding-bottom:3px;border-bottom:1px solid ${SB_DIV};">${esc(title)}</p>`;
+  }
+  function sbField(label, value) {
+    if (!value) return '';
+    return `<p style="font-family:Arial,sans-serif;font-size:7.5pt;font-weight:bold;color:${SB_LABEL};text-transform:uppercase;margin:5px 0 1px 0;">${esc(label)}</p>`
+         + `<p style="font-family:Arial,sans-serif;font-size:9pt;color:${SB_VAL};margin:0 0 4px 0;">${esc(value)}</p>`;
+  }
+  function pills(items, highlight) {
+    if (!items||!items.length) return '';
+    return items.map((item,i) => {
+      const bg    = (highlight && i < 5) ? '#BDD0E0' : '#D8D2C8';
+      const color = (highlight && i < 5) ? '#2C4A62' : '#4A4640';
+      return `<span style="font-family:Arial,sans-serif;font-size:8pt;color:${color};background-color:${bg};padding:2px 6px;margin:0 2px 3px 0;display:inline-block;">${esc(item)}</span>`;
+    }).join(' ');
+  }
+
+  let sbHTML = '';
+  sbHTML += sbHead(L.contact);
+  if (c.email)    sbHTML += sbField('Email', c.email);
+  if (c.telefono) sbHTML += sbField(en?'Phone':'Teléfono', c.telefono);
+  if (c.ciudad)   sbHTML += sbField(en?'Location':'Ubicación', c.ciudad);
+  if (c.linkedin) sbHTML += sbField('LinkedIn', c.linkedin.replace(/https?:\/\/(www\.)?linkedin\.com\/in\//,'').replace(/\/$/,''));
+  (c.otros||[]).forEach(o => { sbHTML += `<p style="font-family:Arial,sans-serif;font-size:9pt;color:${SB_VAL};margin:2px 0;">${esc(o)}</p>`; });
+
+  sbHTML += sbHead(L.education);
+  (cv.formacion||[]).forEach(f => {
+    sbHTML += `<p style="font-family:Arial,sans-serif;font-size:8.5pt;font-weight:bold;color:${SB_LABEL};margin:5px 0 1px 0;">${esc(f.titulo)}</p>`;
+    sbHTML += `<p style="font-family:Arial,sans-serif;font-size:8pt;color:${SB_VAL};margin:0 0 1px 0;">${esc(f.institucion)}</p>`;
+    if (f.periodo) sbHTML += `<p style="font-family:Arial,sans-serif;font-size:7.5pt;color:${SB_MUTED};margin:0 0 4px 0;">${esc(f.periodo)}</p>`;
+  });
+
+  if ((cv.certificaciones||[]).length) {
+    sbHTML += sbHead(L.certifications);
+    cv.certificaciones.forEach(cert => {
+      sbHTML += `<p style="font-family:Arial,sans-serif;font-size:8.5pt;color:${SB_VAL};margin:4px 0 1px 0;">${esc(cert.nombre)}</p>`;
+      sbHTML += `<p style="font-family:Arial,sans-serif;font-size:7.5pt;color:${SB_MUTED};margin:0 0 3px 0;">${esc(cert.entidad)}${cert.fecha?' · '+esc(cert.fecha):''}</p>`;
+    });
+  }
+
+  sbHTML += sbHead(L.languages);
+  (cv.idiomas||[]).forEach(l => {
+    sbHTML += `<p style="font-family:Arial,sans-serif;font-size:9pt;color:${SB_VAL};margin:3px 0;">${esc(l.idioma)} <span style="color:${SB_MUTED};font-size:8pt;">${esc(l.nivel)}</span></p>`;
+  });
+
+  sbHTML += sbHead(L.skills);
+  sbHTML += `<p style="margin:4px 0 6px 0;line-height:1.9;">${pills(cv.competencias, true)}</p>`;
+
+  if ((cv.herramientas||[]).length) {
+    sbHTML += sbHead(L.tools);
+    sbHTML += `<p style="margin:4px 0 6px 0;line-height:1.9;">${pills(cv.herramientas, false)}</p>`;
+  }
+
+  function mainHead(title) {
+    return `<p style="font-family:Arial,sans-serif;font-size:8pt;font-weight:bold;color:#8A8480;letter-spacing:1.5px;text-transform:uppercase;margin:16px 0 6px 0;padding-bottom:4px;border-bottom:1px solid #DDD9D2;">${esc(title)}</p>`;
+  }
+
+  let expHTML = '';
+  (cv.experiencias||[]).forEach(e => {
+    const meta = [e.periodo, e.ubicacion, e.modelo].filter(Boolean).join(' · ');
+    const bullets = (e.descripcion||[]).map(b =>
+      `<li style="font-family:Arial,sans-serif;font-size:9.5pt;color:#4A4640;margin-bottom:3px;line-height:1.5;">${esc(b)}</li>`
+    ).join('');
+    expHTML += `<p style="font-family:Arial,sans-serif;font-size:11pt;font-weight:bold;color:#2C2A28;margin:12px 0 2px 0;">${esc(e.empresa)}</p>`;
+    expHTML += `<p style="font-family:Arial,sans-serif;font-size:10pt;font-weight:bold;color:#5A7A96;margin:0 0 2px 0;">${esc(e.cargo)}</p>`;
+    expHTML += `<p style="font-family:Arial,sans-serif;font-size:8.5pt;color:#8A8480;margin:0 0 5px 0;">${esc(meta)}</p>`;
+    expHTML += `<ul style="margin:0 0 8px 0;padding-left:16px;">${bullets}</ul>`;
+  });
+
+  const mainHTML =
+    `<p style="font-family:Georgia,serif;font-size:20pt;color:#2C2A28;font-weight:normal;margin:0 0 4px 0;">${esc(cv.nombre)}</p>`
+  + `<p style="font-family:Arial,sans-serif;font-size:11pt;font-weight:bold;color:#5A7A96;margin:0 0 14px 0;">${esc(cv.cargo)}</p>`
+  + mainHead(L.profile)
+  + `<p style="font-family:Arial,sans-serif;font-size:9.5pt;color:#4A4640;line-height:1.65;margin:0 0 8px 0;">${esc(cv.perfil)}</p>`
+  + mainHead(L.experience)
+  + expHTML;
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: 21cm 29.7cm; margin: 0cm; }
+  body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+  table { border-collapse: collapse; border: none; }
+  td { vertical-align: top; padding: 0; border: none; }
+  p { margin: 0; padding: 0; }
+  ul { margin: 0; padding-left: 16px; }
+  li { line-height: 1.5; }
+</style>
+</head>
+<body style="margin:0;padding:0;">
+<table style="width:21cm;table-layout:fixed;border-collapse:collapse;border:none;" cellspacing="0" cellpadding="0" border="0">
+  <colgroup><col style="width:6cm;"><col style="width:15cm;"></colgroup>
+  <tr>
+    <td style="width:6cm;vertical-align:top;border:none;" valign="top">
+      <table style="width:100%;border-collapse:collapse;border:none;" cellspacing="0" cellpadding="0" border="0">
+        <tr><td style="background-color:${SB_BG};padding:24px 14px 32px;border:none;" bgcolor="${SB_BG}">${sbHTML}</td></tr>
+      </table>
+    </td>
+    <td style="width:15cm;vertical-align:top;border:none;" valign="top">
+      <table style="width:100%;border-collapse:collapse;border:none;" cellspacing="0" cellpadding="0" border="0">
+        <tr><td style="background-color:#FFFFFF;padding:24px 24px 32px;border:none;" bgcolor="#FFFFFF">${mainHTML}</td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  const safeName  = (cv.nombre||'CV').replace(/\s+/g,'_');
+  const safeCargo = (cv.cargo||'').split(' ').slice(0,3).join('_').replace(/[^a-zA-Z0-9_]/g,'');
+  a.download = `CV_${safeName}_${safeCargo}.doc`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+// ── Google Docs export ──
+const GDOCS_CLIENT_ID = '341874985690-efs3cruldcse70eslulqjc80dm80php4.apps.googleusercontent.com';
+const GDOCS_SCOPES = 'https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/drive.file';
+let _gtoken = null;
+
+function getGToken() {
+  return new Promise((resolve, reject) => {
+    if (_gtoken) { resolve(_gtoken); return; }
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: GDOCS_CLIENT_ID,
+      scope: GDOCS_SCOPES,
+      callback: (resp) => {
+        if (resp.error) { reject(resp.error); return; }
+        _gtoken = resp.access_token;
+        resolve(_gtoken);
+      }
+    });
+    client.requestAccessToken();
+  });
+}
+
+async function openInGoogleDocs() {
+  const cv = _cv; if (!cv) return;
+  const btn = document.getElementById('btnGdocs');
+  btn.disabled = true;
+  btn.textContent = 'Creando en Drive...';
+
+  try {
+    const token = await getGToken();
+    const en = cv.idioma === 'en';
+    const L  = labels(en);
+    const c  = cv.contacto || {};
+
+    // Build requests for Google Docs API
+    const requests = [];
+    let idx = 1; // cursor index, starts at 1 (after the initial empty paragraph)
+
+    function ins(text, bold, italic, fontSize, color, namedStyle) {
+      const r = {
+        insertText: { location: { index: idx }, text: text }
+      };
+      requests.push(r);
+      const fmt = {};
+      if (bold !== undefined)    fmt.bold = bold;
+      if (italic !== undefined)  fmt.italic = italic;
+      if (fontSize)              fmt.fontSize = { magnitude: fontSize, unit: 'PT' };
+      if (color)                 fmt.foregroundColor = { color: { rgbColor: hexToRgb(color) } };
+      fmt.weightedFontFamily = { fontFamily: (namedStyle === 'name') ? 'Georgia' : 'Arial' };
+      if (Object.keys(fmt).length) {
+        requests.push({
+          updateTextStyle: {
+            range: { startIndex: idx, endIndex: idx + text.length },
+            textStyle: fmt,
+            fields: Object.keys(fmt).join(',')
+          }
+        });
+      }
+      idx += text.length;
+    }
+
+    function insLine(text, bold, italic, fontSize, color, namedStyle) {
+      ins(text + '\n', bold, italic, fontSize, color, namedStyle);
+    }
+
+    function sectionTitle(title) {
+      insLine(title.toUpperCase(), true, false, 8, '#5A7A96');
+      // Add bottom border via paragraph style
+      requests.push({
+        updateParagraphStyle: {
+          range: { startIndex: idx - title.length - 1, endIndex: idx },
+          paragraphStyle: {
+            spaceAbove: { magnitude: 16, unit: 'PT' },
+            spaceBelow: { magnitude: 6, unit: 'PT' },
+            borderBottom: {
+              color: { color: { rgbColor: hexToRgb('#C8C3BA') } },
+              width: { magnitude: 1, unit: 'PT' },
+              padding: { magnitude: 2, unit: 'PT' },
+              dashStyle: 'SOLID'
+            }
+          },
+          fields: 'spaceAbove,spaceBelow,borderBottom'
+        }
+      });
+    }
+
+    function hexToRgb(hex) {
+      const r = parseInt(hex.slice(1,3),16)/255;
+      const g = parseInt(hex.slice(3,5),16)/255;
+      const b = parseInt(hex.slice(5,7),16)/255;
+      return { red: r, green: g, blue: b };
+    }
+
+    // NAME
+    insLine(cv.nombre, false, false, 22, '#2C2A28', 'name');
+    requests.push({ updateParagraphStyle: { range: { startIndex: 1, endIndex: idx }, paragraphStyle: { spaceBelow: { magnitude: 4, unit: 'PT' } }, fields: 'spaceBelow' } });
+
+    // TITLE
+    insLine(cv.cargo, true, false, 12, '#5A7A96');
+
+    // CONTACT
+    const contactParts = [
+      c.email    ? `Email: ${c.email}` : '',
+      c.telefono ? `${en?'Phone':'Tel'}: ${c.telefono}` : '',
+      c.ciudad   ? `${en?'Location':'Ubicación'}: ${c.ciudad}` : '',
+      c.linkedin ? `LinkedIn: ${c.linkedin.replace(/https?:\/\/(www\.)?linkedin\.com\/in\//,'').replace(/\/$/,'')}` : '',
+      ...(c.otros||[])
+    ].filter(Boolean).join('  ·  ');
+    insLine(contactParts, false, false, 9, '#5A5652');
+    insLine('', false, false, 6, '#000000'); // spacer
+
+    // PROFILE
+    sectionTitle(L.profile);
+    insLine(cv.perfil, false, false, 10, '#4A4640');
+
+    // EXPERIENCE
+    sectionTitle(L.experience);
+    (cv.experiencias||[]).forEach(e => {
+      const meta = [e.periodo, e.ubicacion, e.modelo].filter(Boolean).join(' · ');
+      insLine('', false, false, 6, '#000000');
+      insLine(e.empresa, true, false, 11, '#2C2A28');
+      insLine(e.cargo, true, false, 10, '#5A7A96');
+      insLine(meta, false, false, 8.5, '#8A8480');
+      (e.descripcion||[]).forEach(b => {
+        ins('• ', false, false, 9.5, '#4A4640');
+        insLine(b, false, false, 9.5, '#4A4640');
+      });
+    });
+
+    // EDUCATION
+    sectionTitle(L.education);
+    (cv.formacion||[]).forEach(f => {
+      insLine('', false, false, 4, '#000000');
+      insLine(f.titulo, true, false, 9.5, '#2C2A28');
+      insLine(f.institucion, false, false, 9, '#5A5652');
+      if (f.periodo) insLine(f.periodo, false, false, 8, '#7A7672');
+    });
+
+    // CERTIFICATIONS
+    if ((cv.certificaciones||[]).length) {
+      sectionTitle(L.certifications);
+      insLine((cv.certificaciones||[]).map(c => c.nombre + (c.entidad?' · '+c.entidad:'')).join('  ·  '), false, false, 9, '#5A5652');
+    }
+
+    // LANGUAGES
+    sectionTitle(L.languages);
+    insLine((cv.idiomas||[]).map(l => `${l.idioma}: ${l.nivel}`).join('  ·  '), false, false, 9, '#5A5652');
+
+    // SKILLS
+    sectionTitle(L.skills);
+    insLine((cv.competencias||[]).join('  ·  '), false, false, 9, '#4A4640');
+
+    // TOOLS
+    if ((cv.herramientas||[]).length) {
+      sectionTitle(L.tools);
+      insLine((cv.herramientas||[]).join('  ·  '), false, false, 9, '#4A4640');
+    }
+
+    // 1. Create document
+    const createRes = await fetch('https://docs.googleapis.com/v1/documents', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: `CV – ${cv.nombre} – ${cv.cargo}` })
+    });
+    const doc = await createRes.json();
+    const docId = doc.documentId;
+
+    // 2. Apply all formatting in one batchUpdate
+    await fetch(`https://docs.googleapis.com/v1/documents/${docId}:batchUpdate`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests })
+    });
+
+    // 3. Open in new tab
+    window.open(`https://docs.google.com/document/d/${docId}/edit`, '_blank');
+
+    btn.textContent = '✓ Abierto en Drive';
+    setTimeout(() => { btn.textContent = 'Abrir en Google Docs'; btn.disabled = false; }, 3000);
+
+  } catch(err) {
+    console.error(err);
+    showErr('Error conectando con Google Docs: ' + err);
+    btn.textContent = 'Abrir en Google Docs';
+    btn.disabled = false;
+  }
+}
+
+</script>
+</body>
+</html>

@@ -6,6 +6,7 @@
 <title>CV Optimizer</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
 
 <style>
 :root {
@@ -283,7 +284,8 @@ textarea::placeholder { color: var(--light); }
         <div class="rtitle">CV Optimizado</div>
         <div class="rbtns">
           <button class="btn2" id="btncopy" onclick="copyText()">Copiar texto</button>
-          <button class="btn1" id="btnGdocs" onclick="openInGoogleDocs()">
+          <button class="btn1" id="btnWord" onclick="downloadDocx()">Descargar Word (A4)</button>
+          <button class="btn2" id="btnGdocs" onclick="openInGoogleDocs()">
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
   Abrir en Google Docs
 </button>
@@ -291,7 +293,7 @@ textarea::placeholder { color: var(--light); }
       </div>
       <div class="cvwrap"><div id="cvpreview"></div></div>
       <p style="font-size:11px;color:var(--light);text-align:center;margin-top:4px;">
-        El documento se crea directamente en tu Google Drive y se abre listo para editar.
+        Descarga el CV en Word (.docx, tamaño A4) o ábrelo directamente en tu Google Drive.
       </p>
     </div>
 
@@ -652,144 +654,211 @@ function copyText() {
   });
 }
 
-// ── Word export optimised for LibreOffice ──
-function downloadDocx() {
-  const cv = _cv; if (!cv) return;
+// ── Word export (.docx real, A4) ─────────────────────────────────────────────
+// Usa la librería "docx" (cargada por CDN). Genera un .docx nativo en A4
+// (21 x 29,7 cm) con la misma maquetación de dos columnas que la vista previa.
+function buildDocxDocument(cv) {
+  const {
+    Document, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle,
+    ShadingType, HeightRule, TableLayoutType, LevelFormat, VerticalAlign
+  } = docx;
+
   const en = cv.idioma === 'en';
   const L  = labels(en);
   const c  = cv.contacto || {};
 
-  function esc(s) {
-    return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+  const A4_W = 11906, A4_H = 16838;          // A4 en twips (1/20 pt)
+  const SB_W = 3402,  MAIN_W = A4_W - SB_W;  // 6 cm + 15 cm
 
-  const SB_BG    = '#E8E4DC';
-  const SB_TITLE = '#5A7A96';
-  const SB_DIV   = '#C8C3BA';
-  const SB_LABEL = '#3A3835';
-  const SB_VAL   = '#5A5652';
-  const SB_MUTED = '#7A7672';
+  const SB_BG = 'E8E4DC';
+  const FONT  = 'Arial';
+  const clean = s => (s == null ? '' : String(s));
+  const NB    = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+  const NOBORDERS = { top: NB, bottom: NB, left: NB, right: NB };
 
-  function sbHead(title) {
-    return `<p style="font-family:Arial,sans-serif;font-size:8pt;font-weight:bold;color:${SB_TITLE};letter-spacing:1.5px;text-transform:uppercase;margin:14px 0 4px 0;padding-bottom:3px;border-bottom:1px solid ${SB_DIV};">${esc(title)}</p>`;
-  }
-  function sbField(label, value) {
-    if (!value) return '';
-    return `<p style="font-family:Arial,sans-serif;font-size:7.5pt;font-weight:bold;color:${SB_LABEL};text-transform:uppercase;margin:5px 0 1px 0;">${esc(label)}</p>`
-         + `<p style="font-family:Arial,sans-serif;font-size:9pt;color:${SB_VAL};margin:0 0 4px 0;">${esc(value)}</p>`;
-  }
-  function pills(items, highlight) {
-    if (!items||!items.length) return '';
-    return items.map((item,i) => {
-      const bg    = (highlight && i < 5) ? '#BDD0E0' : '#D8D2C8';
-      const color = (highlight && i < 5) ? '#2C4A62' : '#4A4640';
-      return `<span style="font-family:Arial,sans-serif;font-size:8pt;color:${color};background-color:${bg};padding:2px 6px;margin:0 2px 3px 0;display:inline-block;">${esc(item)}</span>`;
-    }).join(' ');
-  }
-
-  let sbHTML = '';
-  sbHTML += sbHead(L.contact);
-  if (c.email)    sbHTML += sbField('Email', c.email);
-  if (c.telefono) sbHTML += sbField(en?'Phone':'Teléfono', c.telefono);
-  if (c.ciudad)   sbHTML += sbField(en?'Location':'Ubicación', c.ciudad);
-  if (c.linkedin) sbHTML += sbField('LinkedIn', c.linkedin.replace(/https?:\/\/(www\.)?linkedin\.com\/in\//,'').replace(/\/$/,''));
-  (c.otros||[]).forEach(o => { sbHTML += `<p style="font-family:Arial,sans-serif;font-size:9pt;color:${SB_VAL};margin:2px 0;">${esc(o)}</p>`; });
-
-  sbHTML += sbHead(L.education);
-  (cv.formacion||[]).forEach(f => {
-    sbHTML += `<p style="font-family:Arial,sans-serif;font-size:8.5pt;font-weight:bold;color:${SB_LABEL};margin:5px 0 1px 0;">${esc(f.titulo)}</p>`;
-    sbHTML += `<p style="font-family:Arial,sans-serif;font-size:8pt;color:${SB_VAL};margin:0 0 1px 0;">${esc(f.institucion)}</p>`;
-    if (f.periodo) sbHTML += `<p style="font-family:Arial,sans-serif;font-size:7.5pt;color:${SB_MUTED};margin:0 0 4px 0;">${esc(f.periodo)}</p>`;
-  });
-
-  if ((cv.certificaciones||[]).length) {
-    sbHTML += sbHead(L.certifications);
-    cv.certificaciones.forEach(cert => {
-      sbHTML += `<p style="font-family:Arial,sans-serif;font-size:8.5pt;color:${SB_VAL};margin:4px 0 1px 0;">${esc(cert.nombre)}</p>`;
-      sbHTML += `<p style="font-family:Arial,sans-serif;font-size:7.5pt;color:${SB_MUTED};margin:0 0 3px 0;">${esc(cert.entidad)}${cert.fecha?' · '+esc(cert.fecha):''}</p>`;
+  function run(text, o = {}) {
+    return new TextRun({
+      text: clean(text),
+      font: o.font || FONT,
+      size: Math.round((o.size || 9.5) * 2),
+      bold: !!o.bold,
+      color: o.color || '4A4640',
+      allCaps: !!o.caps,
+      characterSpacing: o.spacing,
+      shading: o.fill ? { type: ShadingType.CLEAR, color: 'auto', fill: o.fill } : undefined
     });
   }
 
-  sbHTML += sbHead(L.languages);
-  (cv.idiomas||[]).forEach(l => {
-    sbHTML += `<p style="font-family:Arial,sans-serif;font-size:9pt;color:${SB_VAL};margin:3px 0;">${esc(l.idioma)} <span style="color:${SB_MUTED};font-size:8pt;">${esc(l.nivel)}</span></p>`;
+  function para(children, o = {}) {
+    return new Paragraph({
+      children: Array.isArray(children) ? children : [children],
+      spacing: { before: o.before || 0, after: o.after || 0, line: o.line || 252 },
+      border: o.border,
+      numbering: o.bullet ? { reference: 'bul', level: 0 } : undefined,
+      keepNext: !!o.keepNext
+    });
+  }
+
+  function head(title, color, line) {
+    return para(run(title, { size: 8, bold: true, color, caps: true, spacing: 30 }), {
+      before: 260, after: 100, keepNext: true,
+      border: { bottom: { style: BorderStyle.SINGLE, size: 6, space: 3, color: line } }
+    });
+  }
+  const sbHead   = t => head(t, '5A7A96', 'C8C3BA');
+  const mainHead = t => head(t, '8A8480', 'DDD9D2');
+
+  function sbField(label, value) {
+    if (!value) return [];
+    return [
+      para(run(label, { size: 7.5, bold: true, color: '3A3835', caps: true }), { before: 100, after: 20 }),
+      para(run(value, { size: 9, color: '5A5652' }), { after: 60 })
+    ];
+  }
+
+  function pills(items, highlight) {
+    const runs = [];
+    (items || []).forEach((item, i) => {
+      const hl = highlight && i < 5;
+      runs.push(run(' ' + clean(item) + ' ', {
+        size: 8, color: hl ? '2C4A62' : '4A4640', fill: hl ? 'BDD0E0' : 'D8D2C8'
+      }));
+      runs.push(run('  ', { size: 8 }));
+    });
+    return runs.length ? [para(runs, { before: 60, after: 80, line: 340 })] : [];
+  }
+
+  // ── Barra lateral ──
+  const sb = [];
+  sb.push(sbHead(L.contact));
+  sb.push(...sbField('Email', c.email));
+  sb.push(...sbField(en ? 'Phone' : 'Teléfono', c.telefono));
+  sb.push(...sbField(en ? 'Location' : 'Ubicación', c.ciudad));
+  if (c.linkedin) sb.push(...sbField('LinkedIn', clean(c.linkedin).replace(/https?:\/\/(www\.)?linkedin\.com\/in\//, '').replace(/\/$/, '')));
+  (c.otros || []).forEach(o => sb.push(para(run(o, { size: 9, color: '5A5652' }), { after: 40 })));
+
+  sb.push(sbHead(L.education));
+  (cv.formacion || []).forEach(f => {
+    sb.push(para(run(f.titulo, { size: 8.5, bold: true, color: '3A3835' }), { before: 100, after: 20 }));
+    sb.push(para(run(f.institucion, { size: 8, color: '5A5652' }), { after: 20 }));
+    if (f.periodo) sb.push(para(run(f.periodo, { size: 7.5, color: '7A7672' }), { after: 60 }));
   });
 
-  sbHTML += sbHead(L.skills);
-  sbHTML += `<p style="margin:4px 0 6px 0;line-height:1.9;">${pills(cv.competencias, true)}</p>`;
-
-  if ((cv.herramientas||[]).length) {
-    sbHTML += sbHead(L.tools);
-    sbHTML += `<p style="margin:4px 0 6px 0;line-height:1.9;">${pills(cv.herramientas, false)}</p>`;
+  if ((cv.certificaciones || []).length) {
+    sb.push(sbHead(L.certifications));
+    cv.certificaciones.forEach(ct => {
+      sb.push(para(run(ct.nombre, { size: 8.5, color: '5A5652' }), { before: 80, after: 20 }));
+      sb.push(para(run(clean(ct.entidad) + (ct.fecha ? ' · ' + ct.fecha : ''), { size: 7.5, color: '7A7672' }), { after: 60 }));
+    });
   }
 
-  function mainHead(title) {
-    return `<p style="font-family:Arial,sans-serif;font-size:8pt;font-weight:bold;color:#8A8480;letter-spacing:1.5px;text-transform:uppercase;margin:16px 0 6px 0;padding-bottom:4px;border-bottom:1px solid #DDD9D2;">${esc(title)}</p>`;
+  sb.push(sbHead(L.languages));
+  (cv.idiomas || []).forEach(l => {
+    sb.push(para([
+      run(l.idioma, { size: 9, color: '5A5652' }),
+      run('  ' + clean(l.nivel), { size: 8, color: '7A7672' })
+    ], { before: 40, after: 40 }));
+  });
+
+  sb.push(sbHead(L.skills));
+  sb.push(...pills(cv.competencias, true));
+
+  if ((cv.herramientas || []).length) {
+    sb.push(sbHead(L.tools));
+    sb.push(...pills(cv.herramientas, false));
   }
 
-  let expHTML = '';
-  (cv.experiencias||[]).forEach(e => {
+  // ── Columna principal ──
+  const main = [];
+  main.push(para(run(cv.nombre, { font: 'Georgia', size: 20, color: '2C2A28' }), { after: 60 }));
+  main.push(para(run(cv.cargo, { size: 11, bold: true, color: '5A7A96' }), { after: 200 }));
+  main.push(mainHead(L.profile));
+  main.push(para(run(cv.perfil, { size: 9.5 }), { before: 60, after: 120, line: 290 }));
+  main.push(mainHead(L.experience));
+  (cv.experiencias || []).forEach(e => {
     const meta = [e.periodo, e.ubicacion, e.modelo].filter(Boolean).join(' · ');
-    const bullets = (e.descripcion||[]).map(b =>
-      `<li style="font-family:Arial,sans-serif;font-size:9.5pt;color:#4A4640;margin-bottom:3px;line-height:1.5;">${esc(b)}</li>`
-    ).join('');
-    expHTML += `<p style="font-family:Arial,sans-serif;font-size:11pt;font-weight:bold;color:#2C2A28;margin:12px 0 2px 0;">${esc(e.empresa)}</p>`;
-    expHTML += `<p style="font-family:Arial,sans-serif;font-size:10pt;font-weight:bold;color:#5A7A96;margin:0 0 2px 0;">${esc(e.cargo)}</p>`;
-    expHTML += `<p style="font-family:Arial,sans-serif;font-size:8.5pt;color:#8A8480;margin:0 0 5px 0;">${esc(meta)}</p>`;
-    expHTML += `<ul style="margin:0 0 8px 0;padding-left:16px;">${bullets}</ul>`;
+    main.push(para(run(e.empresa, { size: 11, bold: true, color: '2C2A28' }), { before: 200, after: 30, keepNext: true }));
+    main.push(para(run(e.cargo, { size: 10, bold: true, color: '5A7A96' }), { after: 30, keepNext: true }));
+    main.push(para(run(meta, { size: 8.5, color: '8A8480' }), { after: 80, keepNext: true }));
+    (e.descripcion || []).forEach(b => main.push(para(run(b, { size: 9.5 }), { bullet: true, after: 50, line: 276 })));
   });
 
-  const mainHTML =
-    `<p style="font-family:Georgia,serif;font-size:20pt;color:#2C2A28;font-weight:normal;margin:0 0 4px 0;">${esc(cv.nombre)}</p>`
-  + `<p style="font-family:Arial,sans-serif;font-size:11pt;font-weight:bold;color:#5A7A96;margin:0 0 14px 0;">${esc(cv.cargo)}</p>`
-  + mainHead(L.profile)
-  + `<p style="font-family:Arial,sans-serif;font-size:9.5pt;color:#4A4640;line-height:1.65;margin:0 0 8px 0;">${esc(cv.perfil)}</p>`
-  + mainHead(L.experience)
-  + expHTML;
+  const cell = (children, width, fill, m) => new TableCell({
+    children,
+    width: { size: width, type: WidthType.DXA },
+    borders: NOBORDERS,
+    verticalAlign: VerticalAlign.TOP,
+    shading: { type: ShadingType.CLEAR, color: 'auto', fill },
+    margins: m
+  });
 
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<style>
-  @page { size: 21cm 29.7cm; margin: 0cm; }
-  body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
-  table { border-collapse: collapse; border: none; }
-  td { vertical-align: top; padding: 0; border: none; }
-  p { margin: 0; padding: 0; }
-  ul { margin: 0; padding-left: 16px; }
-  li { line-height: 1.5; }
-</style>
-</head>
-<body style="margin:0;padding:0;">
-<table style="width:21cm;table-layout:fixed;border-collapse:collapse;border:none;" cellspacing="0" cellpadding="0" border="0">
-  <colgroup><col style="width:6cm;"><col style="width:15cm;"></colgroup>
-  <tr>
-    <td style="width:6cm;vertical-align:top;border:none;" valign="top">
-      <table style="width:100%;border-collapse:collapse;border:none;" cellspacing="0" cellpadding="0" border="0">
-        <tr><td style="background-color:${SB_BG};padding:24px 14px 32px;border:none;" bgcolor="${SB_BG}">${sbHTML}</td></tr>
-      </table>
-    </td>
-    <td style="width:15cm;vertical-align:top;border:none;" valign="top">
-      <table style="width:100%;border-collapse:collapse;border:none;" cellspacing="0" cellpadding="0" border="0">
-        <tr><td style="background-color:#FFFFFF;padding:24px 24px 32px;border:none;" bgcolor="#FFFFFF">${mainHTML}</td></tr>
-      </table>
-    </td>
-  </tr>
-</table>
-</body>
-</html>`;
+  const table = new Table({
+    width: { size: A4_W, type: WidthType.DXA },
+    columnWidths: [SB_W, MAIN_W],
+    layout: TableLayoutType.FIXED,
+    borders: { ...NOBORDERS, insideHorizontal: NB, insideVertical: NB },
+    rows: [new TableRow({
+      height: { value: A4_H - 140, rule: HeightRule.ATLEAST },
+      children: [
+        cell(sb,   SB_W,   SB_BG,    { top: 480, bottom: 640, left: 300, right: 260 }),
+        cell(main, MAIN_W, 'FFFFFF', { top: 480, bottom: 640, left: 520, right: 520 })
+      ]
+    })]
+  });
 
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  const safeName  = (cv.nombre||'CV').replace(/\s+/g,'_');
-  const safeCargo = (cv.cargo||'').split(' ').slice(0,3).join('_').replace(/[^a-zA-Z0-9_]/g,'');
-  a.download = `CV_${safeName}_${safeCargo}.doc`;
-  a.click();
-  URL.revokeObjectURL(url);
+  // Párrafo final mínimo (Word exige uno tras la tabla) para no generar página en blanco
+  const tail = new Paragraph({ children: [new TextRun({ text: '', size: 2 })], spacing: { before: 0, after: 0, line: 20 } });
+
+  return new Document({
+    creator: cv.nombre || 'CV',
+    title: `CV – ${clean(cv.nombre)} – ${clean(cv.cargo)}`,
+    numbering: {
+      config: [{
+        reference: 'bul',
+        levels: [{
+          level: 0, format: LevelFormat.BULLET, text: '•', alignment: 'left',
+          style: { paragraph: { indent: { left: 260, hanging: 200 } }, run: { color: '4A4640' } }
+        }]
+      }]
+    },
+    sections: [{
+      properties: {
+        page: {
+          size: { width: A4_W, height: A4_H },   // A4 vertical
+          margin: { top: 0, right: 0, bottom: 0, left: 0, header: 0, footer: 0 }
+        }
+      },
+      children: [table, tail]
+    }]
+  });
 }
+
+async function downloadDocx() {
+  const cv = _cv; if (!cv) return;
+  const btn = document.getElementById('btnWord');
+  const label = btn ? btn.textContent : '';
+  try {
+    if (typeof docx === 'undefined') throw new Error('No se pudo cargar la librería de Word. Revisa tu conexión y recarga la página.');
+    if (btn) { btn.disabled = true; btn.textContent = 'Generando Word...'; }
+    const blob = await docx.Packer.toBlob(buildDocxDocument(cv));
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const safeName  = (cv.nombre || 'CV').replace(/\s+/g, '_');
+    const safeCargo = (cv.cargo || '').split(' ').slice(0, 3).join('_').replace(/[^a-zA-Z0-9_]/g, '');
+    a.href = url;
+    a.download = `CV_${safeName}_${safeCargo}.docx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch (err) {
+    console.error(err);
+    showErr('Error generando el Word: ' + (err.message || err));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  }
+}
+
 // ── Google Docs export ──
 const GDOCS_CLIENT_ID = '341874985690-efs3cruldcse70eslulqjc80dm80php4.apps.googleusercontent.com';
 const GDOCS_SCOPES = 'https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/drive.file';
